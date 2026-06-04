@@ -11,6 +11,8 @@ export default async function handler(req, res) {
       const params = new URLSearchParams(req.query);
       const url = `https://www.guerrillamail.com/ajax.php?${params.toString()}`;
       
+      console.log('[API GET] Requesting:', url);
+      
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -20,24 +22,35 @@ export default async function handler(req, res) {
         },
       });
 
+      console.log('[API GET] Response Status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Guerrilla Mail API returned ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log('[API GET] Response Data:', JSON.stringify(data).substring(0, 200));
+      
       return res.status(200).json(data);
     }
 
     // POST 요청: 폼 데이터 사용
     if (req.method === 'POST') {
-      // 요청 본문이 이미 파싱되어 있는지 확인
       let body = req.body;
       
-      // 만약 문자열이면 파싱
+      // 요청 본문 파싱
       if (typeof body === 'string') {
         body = Object.fromEntries(new URLSearchParams(body));
       }
+
+      console.log('[API POST] Request Body:', JSON.stringify(body).substring(0, 200));
 
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(body || {})) {
         params.append(key, value);
       }
+
+      console.log('[API POST] Requesting Guerrilla Mail API');
 
       const response = await fetch('https://www.guerrillamail.com/ajax.php', {
         method: 'POST',
@@ -49,13 +62,24 @@ export default async function handler(req, res) {
         body: params.toString(),
       });
 
+      console.log('[API POST] Response Status:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`Guerrilla Mail API returned ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log('[API POST] Response Data:', JSON.stringify(data).substring(0, 200));
+      
       return res.status(200).json(data);
     }
 
     res.status(405).json({ error: 'Method not allowed' });
   } catch (e) {
-    console.error('API Error:', e);
-    res.status(500).json({ error: e.message });
+    console.error('[API ERROR]', e.message);
+    return res.status(500).json({ 
+      error: e.message,
+      details: 'Guerrilla Mail API may be unavailable'
+    });
   }
 }
