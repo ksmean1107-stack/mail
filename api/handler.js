@@ -26,8 +26,16 @@ export default async function handler(req, res) {
 
     // POST 요청: 폼 데이터 사용
     if (req.method === 'POST') {
+      // 요청 본문이 이미 파싱되어 있는지 확인
+      let body = req.body;
+      
+      // 만약 문자열이면 파싱
+      if (typeof body === 'string') {
+        body = Object.fromEntries(new URLSearchParams(body));
+      }
+
       const params = new URLSearchParams();
-      for (const [key, value] of Object.entries(req.body || {})) {
+      for (const [key, value] of Object.entries(body || {})) {
         params.append(key, value);
       }
 
