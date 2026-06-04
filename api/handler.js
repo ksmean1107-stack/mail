@@ -9,11 +9,16 @@ export default async function handler(req, res) {
     // GET 요청: 쿼리 파라미터 사용
     if (req.method === 'GET') {
       const params = new URLSearchParams(req.query);
-      const url = `https://www.guerrillamail.com/ajax.php?${params.toString()}`;
+      const url = new URL('https://www.guerrillamail.com/ajax.php');
       
-      console.log('[API GET] Requesting:', url);
+      // Use WHATWG URL API instead of url.parse()
+      for (const [key, value] of params) {
+        url.searchParams.append(key, value);
+      }
       
-      const response = await fetch(url, {
+      console.log('[API GET] Requesting:', url.toString());
+      
+      const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
