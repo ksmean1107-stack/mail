@@ -46,7 +46,7 @@
     content: '';
     position: fixed;
     inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOc[...]
     pointer-events: none;
     z-index: 0;
     opacity: 0.5;
@@ -242,6 +242,7 @@
     transition: all 0.15s;
   }
   .refresh-btn:hover { color: var(--text); border-color: var(--muted); }
+  .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .refresh-btn.spinning .icon { animation: spin 0.6s linear infinite; }
 
   .inbox-list {
@@ -542,7 +543,7 @@
   <!-- INBOX -->
   <div class="inbox-header">
     <div class="inbox-title">받은 편지함 <span class="badge" id="unreadBadge" style="display:none">0</span></div>
-    <button class="refresh-btn" id="refreshBtn" onclick="checkMail()">
+    <button class="refresh-btn" id="refreshBtn" onclick="checkMail()" title="이메일 새로고침">
       <span class="icon" id="refreshIcon">↻</span> 새로고침
     </button>
   </div>
@@ -604,8 +605,9 @@
   let timerSec = 600; // 10분
   let timerInterval = null;
   let refreshInterval = null;
+  let isRefreshing = false;
 
-  const API = '/api/mail';
+  const API = '/api/handler';
 
   // ─── INIT ─────────────────────────────────────────────────────
   async function init() {
@@ -617,13 +619,18 @@
   async function getEmail() {
     try {
       const res = await fetch(`${API}?f=get_email_address&lang=ko`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      
       const data = await res.json();
+      if (!data.email_addr) throw new Error('No email address returned');
+      
       currentEmail = data.email_addr;
-      sessionToken = data.sid_token;
+      sessionToken = data.sid_token || '';
       displayEmail(currentEmail);
       showToast('새 이메일 주소가 생성되었습니다');
       checkMail();
     } catch (e) {
+      console.error('getEmail error:', e);
       // Fallback: generate random address for demo
       const user = randomStr(10);
       currentEmail = `${user}@guerrillamailblock.com`;
@@ -663,28 +670,35 @@
 
   // ─── CHECK MAIL ───────────────────────────────────────────────
   async function checkMail() {
+    if (isRefreshing) return;
+    
     const btn = document.getElementById('refreshBtn');
+    btn.disabled = true;
     btn.classList.add('spinning');
+    isRefreshing = true;
 
     try {
-      const res = await fetch(`${API}?f=get_email_list&offset=0&seq=0&sid_token=${sessionToken}`);
+      const res = await fetch(`${API}?f=get_email_list&offset=0&seq=0&sid_token=${encodeURIComponent(sessionToken)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      
       const data = await res.json();
 
-      if (data.list && data.list.length > 0) {
+      if (data.list && Array.isArray(data.list) && data.list.length > 0) {
         const newEmails = data.list.filter(m => !emails.find(e => e.mail_id === m.mail_id));
         if (newEmails.length > 0) {
           emails = data.list;
           renderInbox();
-          if (newEmails.length > 0 && emails.length > 0) {
-            showToast(`새 메일 ${newEmails.length}개 도착!`);
-          }
+          showToast(`새 메일 ${newEmails.length}개 도착!`);
         }
       }
     } catch (e) {
-      // silent fail
+      console.error('checkMail error:', e);
+      // 오프라인 모드에서는 조용히 실패
     }
 
     btn.classList.remove('spinning');
+    btn.disabled = false;
+    isRefreshing = false;
   }
 
   function renderInbox() {
@@ -711,7 +725,7 @@
     }
 
     list.innerHTML = emails.map(m => `
-      <div class="mail-item ${m.mail_read === '0' ? 'unread' : ''}" onclick="openMail('${m.mail_id}')">
+      <div class="mail-item ${m.mail_read === '0' ? 'unread' : ''}" onclick="openMail('${escHtml(m.mail_id)}')">
         <div class="mail-from">${escHtml(m.mail_from)}</div>
         <div class="mail-time">${formatTime(m.mail_timestamp)}</div>
         <div class="mail-subject">${escHtml(m.mail_subject) || '(제목 없음)'}</div>
@@ -721,7 +735,9 @@
 
   async function openMail(mailId) {
     try {
-      const res = await fetch(`${API}?f=fetch_email&email_id=${mailId}&sid_token=${sessionToken}`);
+      const res = await fetch(`${API}?f=fetch_email&email_id=${encodeURIComponent(mailId)}&sid_token=${encodeURIComponent(sessionToken)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      
       const m = await res.json();
 
       document.getElementById('modalSubject').textContent = m.mail_subject || '(제목 없음)';
@@ -740,6 +756,7 @@
       if (idx !== -1) emails[idx].mail_read = '1';
       renderInbox();
     } catch (e) {
+      console.error('openMail error:', e);
       showToast('메일을 불러올 수 없습니다', true);
     }
   }
@@ -773,7 +790,8 @@
     status.style.display = 'block';
 
     try {
-      const params = new URLSearchParams({
+      // POST 요청으로 변경
+      const formData = new URLSearchParams({
         f: 'send_email',
         sid_token: sessionToken,
         to: to,
@@ -782,10 +800,19 @@
         from: currentEmail
       });
 
-      const res = await fetch(`${API}?${params.toString()}`);
+      const res = await fetch(`${API}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString()
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      
       const data = await res.json();
 
-      if (data.email_addr || data.ok || data.result === 'ok') {
+      if (data.result === 'success' || data.ok === true || data.email_addr) {
         showToast('이메일이 전송되었습니다 ✓');
         document.getElementById('sendTo').value = '';
         document.getElementById('sendSubject').value = '';
@@ -794,6 +821,7 @@
         showToast('전송에 실패했습니다. 다시 시도해주세요', true);
       }
     } catch (e) {
+      console.error('sendEmail error:', e);
       showToast('전송 중 오류가 발생했습니다', true);
     }
 
@@ -856,4 +884,4 @@
   init();
 </script>
 </body>
-  </html>
+</html>
