@@ -5,6 +5,9 @@
       "maxDuration": 60
     }
   },
+  "rewrites": [
+    { "source": "/api/handler", "destination": "/api/handler.js" }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
