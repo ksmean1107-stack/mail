@@ -28,31 +28,6 @@
     overflow-x: hidden;
   }
 
-  /* BACKGROUND GRID */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* NOISE OVERLAY */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' seed='1'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23noise)'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.5;
-  }
-
   .wrapper {
     position: relative;
     z-index: 1;
@@ -1001,40 +976,42 @@
     } catch (e) {
       addDebugLog(`✗ 오류: ${e.message}`, 'error');
       console.error('sendEmail error:', e);
-      showToast('전송 중 오류가 발생했습니다', true);
+      showToast('이메일 전송 중 오류가 발생했습니다', true);
+    } finally {
+      btn.disabled = false;
+      status.style.display = 'none';
     }
-
-    btn.disabled = false;
-    status.style.display = 'none';
   }
 
-  // ─── TIMER ───────────────────────────────────────────────────
+  // ─── TIMER ────────────────────────────────────────────────────
   function startTimer() {
-    if (timerInterval) clearInterval(timerInterval);
+    updateTimerDisplay();
     timerInterval = setInterval(() => {
       timerSec--;
+      updateTimerDisplay();
       if (timerSec <= 0) {
         clearInterval(timerInterval);
-        document.getElementById('timerDisplay').textContent = '만료됨';
-        showToast('이메일 주소가 만료되었습니다. 새 주소를 생성하세요', true);
-        addDebugLog('⚠️ 만료');
-        return;
+        generateNew();
       }
-      const m = Math.floor(timerSec / 60);
-      const s = timerSec % 60;
-      document.getElementById('timerDisplay').textContent =
-        `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
     }, 1000);
   }
 
-  function startAutoRefresh() {
-    if (refreshInterval) clearInterval(refreshInterval);
-    refreshInterval = setInterval(checkMail, 15000);
-    addDebugLog('자동 새로고침 시작 (15초)');
+  function updateTimerDisplay() {
+    const min = Math.floor(timerSec / 60);
+    const sec = timerSec % 60;
+    const display = `${min}:${sec < 10 ? '0' : ''}${sec}`;
+    document.getElementById('timerDisplay').textContent = display;
   }
 
-  // ─── PAGE LOAD ────────────────────────────────────────────────
-  window.addEventListener('DOMContentLoaded', init);
+  // ─── AUTO REFRESH ─────────────────────────────────────────────
+  function startAutoRefresh() {
+    refreshInterval = setInterval(() => {
+      checkMail();
+    }, 30000);
+  }
+
+  // ─── START ────────────────────────────────────────────────────
+  init();
 </script>
 </body>
 </html>
