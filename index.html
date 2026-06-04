@@ -46,7 +46,7 @@
     content: '';
     position: fixed;
     inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' seed='2'/%3E%3C/filter%3E%3Crect width='256' height='256' fill='%23000' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' seed='1'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23noise)'/%3E%3C/svg%3E");
     background-repeat: repeat;
     pointer-events: none;
     z-index: 0;
@@ -651,6 +651,47 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  // ─── UTILITY FUNCTIONS ────────────────────────────────────────
+  function randomStr(len) {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < len; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  function escHtml(str) {
+    if (typeof str !== 'string') return '';
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return str.replace(/[&<>"']/g, m => map[m]);
+  }
+
+  function formatTime(ts) {
+    const d = new Date(ts * 1000);
+    const now = new Date();
+    const diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return '방금 전';
+    if (diff < 3600) return Math.floor(diff / 60) + '분 전';
+    if (diff < 86400) return Math.floor(diff / 3600) + '시간 전';
+    return Math.floor(diff / 86400) + '일 전';
+  }
+
+  function showToast(msg, isError = false) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = `toast show ${isError ? 'error' : ''}`;
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  }
+
   // ─── STATE ───────────────────────────────────────────────────
   let currentEmail = '';
   let sessionToken = '';
@@ -992,36 +1033,8 @@
     addDebugLog('자동 새로고침 시작 (15초)');
   }
 
-  // ─── UTILS ───────────────────────────────────────────────────
-  function formatTime(ts) {
-    const d = new Date(ts * 1000);
-    const now = new Date();
-    const diff = (now - d) / 1000;
-    if (diff < 60) return '방금 전';
-    if (diff < 3600) return `${Math.floor(diff/60)}분 전`;
-    if (diff < 86400) return `${Math.floor(diff/3600)}시간 전`;
-    return d.toLocaleDateString('ko-KR', { month:'short', day:'numeric' });
-  }
-
-  function escHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  function randomStr(n) {
-    const c = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    return Array.from({length: n}, () => c[Math.floor(Math.random() * c.length)]).join('');
-  }
-
-  function showToast(msg, isError = false) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = 'toast show' + (isError ? ' error' : '');
-    setTimeout(() => { t.className = 'toast'; }, 3000);
-  }
-
-  // ─── START ───────────────────────────────────────────────────
-  init();
+  // ─── PAGE LOAD ────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
