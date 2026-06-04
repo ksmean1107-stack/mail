@@ -1,24 +1,27 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
-  const params = new URLSearchParams(req.query);
-  const url = `https://www.guerrillamail.com/ajax.php?${params.toString()}`;
-
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Accept': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-    res.status(200).json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+{
+  "functions": {
+    "api/handler.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type"
+        }
+      ]
+    }
+  ]
 }
