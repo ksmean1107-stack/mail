@@ -187,11 +187,13 @@
   async function createAccount() {
     try {
       // 1. 사용 가능한 도메인 가져오기
-      const domRes = await fetch(`${API}?path=domains`);
-      const domData = await domRes.json();
-      const domains = domData['hydra:member'] || domData.member || [];
-      if (!domains.length) throw new Error('도메인 없음');
-      const domain = domains[0].domain;
+      let domain = 'wshu.net'; // fallback
+      try {
+        const domRes = await fetch(`${API}?path=domains`);
+        const raw = await domRes.json();
+        const domList = raw['hydra:member'] || raw.member || (Array.isArray(raw) ? raw : []);
+        if (domList.length > 0 && domList[0].domain) domain = domList[0].domain;
+      } catch (_) {}
 
       // 2. 랜덤 계정 생성
       const user = randomStr(10);
@@ -394,4 +396,4 @@
   init();
 </script>
 </body>
-  </html>
+</html>
